@@ -27,8 +27,9 @@ Feature: get status
       """
 
   Scenario: should create work item 
+    When I'm authorized
     When I send "POST" request to "create_workitem"
-    Then the response code should be 200
+    Then the response code should be 201
     And the response should contain fields:
       """
       {

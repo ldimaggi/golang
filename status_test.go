@@ -33,8 +33,10 @@ func createPayload() *client.CreateWorkItemPayload {
 	return &client.CreateWorkItemPayload{
 		Type: "system.bug",
 		Fields: map[string]interface{}{
-			"foo":    "bar",
-			"blabla": -1,
+			"system.title":   "remove this workitem PLEASE",
+			"system.owner":   "ldimaggi",
+			"system.state":   "open",
+			"system.creator": "ldimaggi",
 		},
 	}
 }
@@ -51,10 +53,12 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		a.resp = resp
 		a.err = err
 	case "create_workitem":
-		resp, err := a.c.GenerateLogin(context.Background(), "/api/login/generate")
+		//		resp, err := a.c.GenerateLogin(context.Background(), "/api/login/generate")
+		//		fmt.Println("body = ", resp.Body)
+		//		fmt.Println("error = ", resp.Status)
+		resp, err := a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload(), "newType")
 		fmt.Println("body = ", resp.Body)
 		fmt.Println("error = ", resp.Status)
-		resp, err = a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload(), "newType")
 		a.resp = resp
 		a.err = err
 
@@ -84,9 +88,21 @@ func (a *api) theResponseShouldContainFields(theDocString *gherkin.DocString) er
 	return nil
 }
 
+func (a *api) imAuthorized() error {
+	key := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJmdWxsTmFtZSI6IlRlc3QgRGV2ZWxvcGVyIiwiaW1hZ2VVUkwiOiIiLCJ1dWlkIjoiNGI4Zjk0YjUtYWQ4OS00NzI1LWI1ZTUtNDFkNmJiNzdkZjFiIn0.ML2N_P2qm-CMBliUA1Mqzn0KKAvb9oVMbyynVkcyQq3myumGeCMUI2jy56KPuwIHySv7i-aCUl4cfIjG-8NCuS4EbFSp3ja0zpsv1UDyW6tr-T7jgAGk-9ALWxcUUEhLYSnxJoEwZPQUFNTWLYGWJiIOgM86__OBQV6qhuVwjuMlikYaHIKPnetCXqLTMe05YGrbxp7xgnWMlk9tfaxgxAJF5W6WmOlGaRg01zgvoxkRV-2C6blimddiaOlK0VIsbOiLQ04t9QA8bm9raLWX4xOkXN4ubpdsobEzcJaTD7XW0pOeWPWZY2cXCQulcAxfIy6UmCXA14C07gyuRs86Rw" // call api to get key
+	a.c.SetJWTSigner(&goaclient.APIKeySigner{
+		SignQuery: false,
+		KeyName:   "Authorization",
+		KeyValue:  key,
+		Format:    "Bearer %s",
+	})
+	return nil
+}
+
 func FeatureContext(s *godog.Suite) {
 	a := api{}
 	s.BeforeScenario(a.newScenario)
+	s.Step(`^I\'m authorized$`, a.imAuthorized)
 	s.Step(`^I send "([^"]*)" request to "([^"]*)"$`, a.iSendRequestTo)
 	s.Step(`^the response code should be (\d+)$`, a.theResponseCodeShouldBe)
 	s.Step(`^the response should contain fields:$`, a.theResponseShouldContainFields)
