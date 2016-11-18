@@ -31,6 +31,16 @@ func (a *api) newScenario(i interface{}) {
 	a.c.Host = "localhost:8080"
 }
 
+func createPayload() *client.CreateWorkItemPayload {
+	return &client.CreateWorkItemPayload{
+		Type: "system.bug",
+		Fields: map[string]interface{}{
+			"foo":    "bar",
+			"blabla": -1,
+		},
+	}
+}
+
 func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 	switch endpoint {
 	case "get_workitemtypes":
@@ -44,9 +54,9 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		a.err = err
 	case "create_workitem":
 		// Question for Aslak - how to create the payload?
-		// resp, err := a.c.CreateWorkitem(context.Background(), "/api/workitems", payload, "newType")
-		//a.resp = resp
-		//a.err = err
+		resp, err := a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload(), "newType")
+		a.resp = resp
+		a.err = err
 
 	default:
 		return godog.ErrPending
@@ -56,7 +66,7 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 
 func (a *api) theResponseCodeShouldBe(statusCode int) error {
 	if a.resp.StatusCode != statusCode {
-		return fmt.Errorf("Expected %d but was %d", a.resp.StatusCode, statusCode)
+		return fmt.Errorf("Expected %d but was %d", statusCode, a.resp.StatusCode)
 	}
 	return nil
 }

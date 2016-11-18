@@ -25,3 +25,14 @@ Feature: get status
         "system.creator":"jsmith"
       }
       """
+
+  Scenario: should create work item 
+    When I send "POST" request to "create_workitem"
+    Then the response code should be 200
+    And the response should contain fields:
+      """
+      {
+        "system.title":"remove this workitem"
+        "system.creator":"jsmith"
+      }
+      """
