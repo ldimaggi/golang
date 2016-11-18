@@ -10,8 +10,7 @@ Feature: get status
     And the response should contain fields:
       """
       {
-        "system.title":"remove this workitem"
-        "system.creator":"jsmith"
+      "name":"system.bug"
       }
       """
 
@@ -33,7 +32,9 @@ Feature: get status
     And the response should contain fields:
       """
       {
-        "system.title":"remove this workitem"
-        "system.creator":"jsmith"
+			"system.title":   "remove this workitem PLEASE",
+			"system.owner":   "ldimaggi",
+			"system.state":   "open",
+			"system.creator": "ldimaggi",
       }
       """

@@ -2,7 +2,6 @@ package feature
 
 import (
 	"context"
-	//	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -12,7 +11,7 @@ import (
 	goaclient "github.com/goadesign/goa/client"
 )
 
-// Simple test to retrieve workitem
+// Simple test to create and retrieve workitem
 
 type api struct {
 	c    *client.Client
@@ -44,7 +43,6 @@ func createPayload() *client.CreateWorkItemPayload {
 func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 	switch endpoint {
 	case "get_workitemtypes":
-		//		resp, err := a.c.ShowStatus(context.Background(), "/api/workitems/20")
 		resp, err := a.c.ListWorkitemtype(context.Background(), "/api/workitemtypes", nil)
 		a.resp = resp
 		a.err = err
@@ -53,15 +51,11 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		a.resp = resp
 		a.err = err
 	case "create_workitem":
-		//		resp, err := a.c.GenerateLogin(context.Background(), "/api/login/generate")
-		//		fmt.Println("body = ", resp.Body)
-		//		fmt.Println("error = ", resp.Status)
 		resp, err := a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload(), "newType")
-		fmt.Println("body = ", resp.Body)
-		fmt.Println("error = ", resp.Status)
+		//fmt.Println("body = ", resp.Body)
+		//fmt.Println("error = ", resp.Status)
 		a.resp = resp
 		a.err = err
-
 	default:
 		return godog.ErrPending
 	}
@@ -77,7 +71,6 @@ func (a *api) theResponseCodeShouldBe(statusCode int) error {
 
 func (a *api) theResponseShouldContainFields(theDocString *gherkin.DocString) error {
 	fmt.Println(string(theDocString.Content))
-
 	defer a.resp.Body.Close()
 	//	htmlData, err := ioutil.ReadAll(a.resp.Body)
 	//	if err != nil {
