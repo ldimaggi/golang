@@ -4,9 +4,7 @@ import (
 	"context"
 	//	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"os"
 
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
@@ -53,8 +51,9 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		a.resp = resp
 		a.err = err
 	case "create_workitem":
-		// Question for Aslak - how to create the payload?
-		resp, err := a.c.AuthorizeLogin(context.Background(), "/api/login/authorize")
+		resp, err := a.c.AuthorizeLogin(context.Background(), "/api/login/generate")
+		fmt.Println("body = ", resp.Body)
+		fmt.Println("error = ", resp.Status)
 		resp, err = a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload(), "newType")
 		a.resp = resp
 		a.err = err
@@ -76,12 +75,12 @@ func (a *api) theResponseShouldContainFields(theDocString *gherkin.DocString) er
 	fmt.Println(string(theDocString.Content))
 
 	defer a.resp.Body.Close()
-	htmlData, err := ioutil.ReadAll(a.resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	fmt.Println(os.Stdout, string(htmlData))
+	//	htmlData, err := ioutil.ReadAll(a.resp.Body)
+	//	if err != nil {
+	//		fmt.Println(err)
+	//		os.Exit(1)
+	//	}
+	//		fmt.Println(os.Stdout, string(htmlData))
 	return nil
 }
 
