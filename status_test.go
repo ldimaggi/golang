@@ -2,10 +2,11 @@ package feature
 
 import (
 	"context"
-	"encoding/json"
+	//	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"strings"
+	"os"
 
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
@@ -13,35 +14,40 @@ import (
 	goaclient "github.com/goadesign/goa/client"
 )
 
+// Simple test to retrieve workitem
+
 type api struct {
 	c    *client.Client
 	resp *http.Response
 	err  error
-	body map[string]interface{}
+	body [200]string
 }
 
 func (a *api) newScenario(i interface{}) {
 	a.c = nil
 	a.resp = nil
 	a.err = nil
-
 	a.c = client.New(goaclient.HTTPClientDoer(http.DefaultClient))
 	a.c.Host = "localhost:8080"
 }
 
 func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 	switch endpoint {
-	case "status":
-		resp, err := a.c.ShowStatus(context.Background(), "/api/status")
+	case "get_workitemtypes":
+		//		resp, err := a.c.ShowStatus(context.Background(), "/api/workitems/20")
+		resp, err := a.c.ListWorkitemtype(context.Background(), "/api/workitemtypes", nil)
 		a.resp = resp
 		a.err = err
-		json.NewDecoder(a.resp.Body).Decode(&a.body)
+	case "get_workitems":
+		resp, err := a.c.ListWorkitem(context.Background(), "/api/workitems", nil, nil)
+		a.resp = resp
+		a.err = err
+	case "create_workitem":
+		// Question for Aslak - how to create the payload?
+		// resp, err := a.c.CreateWorkitem(context.Background(), "/api/workitems", payload, "newType")
+		//a.resp = resp
+		//a.err = err
 
-	case "workitemtypes":
-		resp, err := a.c.ShowStatus(context.Background(), "/api/workitemtypes")
-		a.resp = resp
-		a.err = err
-		json.NewDecoder(a.resp.Body).Decode(&a.body)
 	default:
 		return godog.ErrPending
 	}
@@ -55,27 +61,23 @@ func (a *api) theResponseCodeShouldBe(statusCode int) error {
 	return nil
 }
 
-func (a *api) theResponseShouldContainJSON(jsonKeys *gherkin.DocString) error {
-	var keys map[string]interface{}
-	json.NewDecoder(strings.NewReader(jsonKeys.Content)).Decode(&keys)
+func (a *api) theResponseShouldContainFields(theDocString *gherkin.DocString) error {
+	fmt.Println(string(theDocString.Content))
 
-        for key := range keys {
-		fmt.Printf("THE KEY = " + key)
-		fmt.Printf("%+v\n", a.body)
-		if _, ok := a.body[key]; !ok {
-			return fmt.Errorf("Expected key %s to exist, but got %v", key, a.body)
-		}
+	defer a.resp.Body.Close()
+	htmlData, err := ioutil.ReadAll(a.resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
-
+	fmt.Println(os.Stdout, string(htmlData))
 	return nil
 }
 
 func FeatureContext(s *godog.Suite) {
 	a := api{}
-
 	s.BeforeScenario(a.newScenario)
-
 	s.Step(`^I send "([^"]*)" request to "([^"]*)"$`, a.iSendRequestTo)
 	s.Step(`^the response code should be (\d+)$`, a.theResponseCodeShouldBe)
-	s.Step(`^the response should contain json:$`, a.theResponseShouldContainJSON)
+	s.Step(`^the response should contain fields:$`, a.theResponseShouldContainFields)
 }
