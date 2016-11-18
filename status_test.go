@@ -51,7 +51,7 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		a.resp = resp
 		a.err = err
 	case "create_workitem":
-		resp, err := a.c.AuthorizeLogin(context.Background(), "/api/login/generate")
+		resp, err := a.c.GenerateLogin(context.Background(), "/api/login/generate")
 		fmt.Println("body = ", resp.Body)
 		fmt.Println("error = ", resp.Status)
 		resp, err = a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload(), "newType")
