@@ -2,8 +2,12 @@ package feature
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
@@ -20,6 +24,8 @@ type api struct {
 	body [200]string
 }
 
+var savedToken string
+
 func (a *api) newScenario(i interface{}) {
 	a.c = nil
 	a.resp = nil
@@ -32,7 +38,7 @@ func createPayload() *client.CreateWorkItemPayload {
 	return &client.CreateWorkItemPayload{
 		Type: "system.bug",
 		Fields: map[string]interface{}{
-			"system.title":   "remove this workitem PLEASE",
+			"system.title":   "remove this workitem PLEASE- OK",
 			"system.owner":   "ldimaggi",
 			"system.state":   "open",
 			"system.creator": "ldimaggi",
@@ -72,21 +78,46 @@ func (a *api) theResponseCodeShouldBe(statusCode int) error {
 func (a *api) theResponseShouldContainFields(theDocString *gherkin.DocString) error {
 	fmt.Println(string(theDocString.Content))
 	defer a.resp.Body.Close()
-	//	htmlData, err := ioutil.ReadAll(a.resp.Body)
-	//	if err != nil {
-	//		fmt.Println(err)
-	//		os.Exit(1)
-	//	}
-	//		fmt.Println(os.Stdout, string(htmlData))
+	htmlData, err := ioutil.ReadAll(a.resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	fmt.Println(os.Stdout, string(htmlData))
 	return nil
 }
 
 func (a *api) imAuthorized() error {
-	key := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJmdWxsTmFtZSI6IlRlc3QgRGV2ZWxvcGVyIiwiaW1hZ2VVUkwiOiIiLCJ1dWlkIjoiNGI4Zjk0YjUtYWQ4OS00NzI1LWI1ZTUtNDFkNmJiNzdkZjFiIn0.ML2N_P2qm-CMBliUA1Mqzn0KKAvb9oVMbyynVkcyQq3myumGeCMUI2jy56KPuwIHySv7i-aCUl4cfIjG-8NCuS4EbFSp3ja0zpsv1UDyW6tr-T7jgAGk-9ALWxcUUEhLYSnxJoEwZPQUFNTWLYGWJiIOgM86__OBQV6qhuVwjuMlikYaHIKPnetCXqLTMe05YGrbxp7xgnWMlk9tfaxgxAJF5W6WmOlGaRg01zgvoxkRV-2C6blimddiaOlK0VIsbOiLQ04t9QA8bm9raLWX4xOkXN4ubpdsobEzcJaTD7XW0pOeWPWZY2cXCQulcAxfIy6UmCXA14C07gyuRs86Rw" // call api to get key
+	resp, err := a.c.ShowStatus(context.Background(), "api/login/generate")
+	a.resp = resp
+	a.err = err
+
+	// Option 1 - Extarct the 1st token from the html Data in the reponse
+	defer a.resp.Body.Close()
+	htmlData, err := ioutil.ReadAll(a.resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	//fmt.Println("[[[", string(htmlData), "]]]")
+	lastBin := strings.LastIndex(string(htmlData), "\"},{\"token\":\"")
+	fmt.Printf("The token to use is: %v\n", string(htmlData)[11:lastBin])
+
+	// Option 2 - Extract the 1st token from JSON in the response
+	lastBin = strings.LastIndex(string(htmlData), ",")
+	fmt.Printf("The token to use is: %v\n", string(htmlData)[1:lastBin])
+
+	// TODO - Extract the token from the JSON map read from the html Data in the response
+	byt := []byte(string(htmlData)[1:lastBin])
+	var keys map[string]interface{}
+	json.Unmarshal(byt, &keys)
+	savedToken = fmt.Sprint(keys["token"])
+
+	//key := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJmdWxsTmFtZSI6IlRlc3QgRGV2ZWxvcGVyIiwiaW1hZ2VVUkwiOiIiLCJ1dWlkIjoiNGI4Zjk0YjUtYWQ4OS00NzI1LWI1ZTUtNDFkNmJiNzdkZjFiIn0.ML2N_P2qm-CMBliUA1Mqzn0KKAvb9oVMbyynVkcyQq3myumGeCMUI2jy56KPuwIHySv7i-aCUl4cfIjG-8NCuS4EbFSp3ja0zpsv1UDyW6tr-T7jgAGk-9ALWxcUUEhLYSnxJoEwZPQUFNTWLYGWJiIOgM86__OBQV6qhuVwjuMlikYaHIKPnetCXqLTMe05YGrbxp7xgnWMlk9tfaxgxAJF5W6WmOlGaRg01zgvoxkRV-2C6blimddiaOlK0VIsbOiLQ04t9QA8bm9raLWX4xOkXN4ubpdsobEzcJaTD7XW0pOeWPWZY2cXCQulcAxfIy6UmCXA14C07gyuRs86Rw" // call api to get key
 	a.c.SetJWTSigner(&goaclient.APIKeySigner{
 		SignQuery: false,
 		KeyName:   "Authorization",
-		KeyValue:  key,
+		KeyValue:  savedToken,
 		Format:    "Bearer %s",
 	})
 	return nil
