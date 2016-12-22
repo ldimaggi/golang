@@ -101,6 +101,7 @@ func updatePayload() *client.UpdateWorkItemPayload {
 			"system.creator":  "GordieHowe",
 			"system.assignee": "Not WayneGretzky",
 		},
+		Version: 2,
 	}
 }
 
@@ -115,6 +116,7 @@ func updatePayloadUnassign() *client.UpdateWorkItemPayload {
 			"system.creator":  "GordieHowe",
 			"system.assignee": "Jaromir Jagr",
 		},
+		Version: 3,
 	}
 }
 
@@ -144,7 +146,7 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		a.resp = resp
 		a.err = err
 	case "update_workitem_unassign":
-		Info.Println("Received POST request to update workitem")
+		Info.Println("Received POST request to update/unassign workitem")
 		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayloadUnassign())
 		a.resp = resp
 		a.err = err
@@ -156,10 +158,8 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 			os.Exit(1)
 		}
 		data := string(htmlData)
-		Error.Println(data)
-		Error.Println(data)
-		Error.Println(data)
-		Error.Println(data)
+		Info.Println("The response is:")
+		Info.Println(data)
 
 	case "delete_workitem":
 		Info.Println("Received POST request to delete workitem")
