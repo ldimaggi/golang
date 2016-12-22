@@ -90,7 +90,7 @@ func createPayload() *client.CreateWorkItemPayload {
 	}
 }
 
-/* The payload used to update a workitem */
+/* The payload used to update a workitem - to reassign the workitem*/
 func updatePayload() *client.UpdateWorkItemPayload {
 	return &client.UpdateWorkItemPayload{
 		Type: "system.bug",
@@ -100,6 +100,20 @@ func updatePayload() *client.UpdateWorkItemPayload {
 			"system.state":    "open",
 			"system.creator":  "GordieHowe",
 			"system.assignee": "Not WayneGretzky",
+		},
+	}
+}
+
+/* The payload used to update a workitem - to unassign the workitem*/
+func updatePayloadUnassign() *client.UpdateWorkItemPayload {
+	return &client.UpdateWorkItemPayload{
+		Type: "system.bug",
+		Fields: map[string]interface{}{
+			"system.title":    "remove this TEST workitem PLEASE - OK",
+			"system.owner":    "BobbyOrr",
+			"system.state":    "open",
+			"system.creator":  "GordieHowe",
+			"system.assignee": "Jaromir Jagr",
 		},
 	}
 }
@@ -129,6 +143,24 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayload())
 		a.resp = resp
 		a.err = err
+	case "update_workitem_unassign":
+		Info.Println("Received POST request to update workitem")
+		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayloadUnassign())
+		a.resp = resp
+		a.err = err
+
+		defer a.resp.Body.Close()
+		htmlData, err := ioutil.ReadAll(a.resp.Body)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		data := string(htmlData)
+		Error.Println(data)
+		Error.Println(data)
+		Error.Println(data)
+		Error.Println(data)
+
 	case "delete_workitem":
 		Info.Println("Received POST request to delete workitem")
 		resp, err := a.c.DeleteWorkitem(context.Background(), "/api/workitems/"+idString)
@@ -176,9 +208,16 @@ func (a *api) theResponseShouldContainFields(theDocString *gherkin.DocString) er
 	return nil
 }
 
-/* For non authorized users - no set up is needed */
-func imNotAuthorized() error {
-	//fmt.Println("Nothing to see here - move along")
+/* For authorized users - no set up is needed */
+func (a *api) imAuthorized() error {
+
+	/* Set up authorization with the token obtained earlier in the test */
+	a.c.SetJWTSigner(&goaclient.APIKeySigner{
+		SignQuery: false,
+		KeyName:   "Authorization",
+		KeyValue:  savedToken,
+		Format:    "Bearer %s",
+	})
 	return nil
 }
 
@@ -254,30 +293,30 @@ func (a *api) setUpTestData() {
 func (a *api) cleanUpTestData() {
 	fmt.Println("Nothing to see here - move along")
 
-	/* Set up authorization with the token obtained earlier in the test */
-	a.c.SetJWTSigner(&goaclient.APIKeySigner{
-		SignQuery: false,
-		KeyName:   "Authorization",
-		KeyValue:  savedToken,
-		Format:    "Bearer %s",
-	})
-
-	/* Delete the workitem */
-	Info.Println("The ID of the workitem to be deleted is:", idString)
-	resp, err := a.c.DeleteWorkitem(context.Background(), "/api/workitems/"+idString)
-	a.resp = resp
-	a.err = err
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	//	/* Set up authorization with the token obtained earlier in the test */
+	//	a.c.SetJWTSigner(&goaclient.APIKeySigner{
+	//		SignQuery: false,
+	//		KeyName:   "Authorization",
+	//		KeyValue:  savedToken,
+	//		Format:    "Bearer %s",
+	//	})
+	//
+	//	/* Delete the workitem */
+	//	Info.Println("The ID of the workitem to be deleted is:", idString)
+	//	resp, err := a.c.DeleteWorkitem(context.Background(), "/api/workitems/"+idString)
+	//	a.resp = resp
+	//	a.err = err
+	//	if err != nil {
+	//		fmt.Println(err)
+	//		os.Exit(1)
+	//	}
 }
 
 func FeatureContext(s *godog.Suite) {
 	a := api{}
 	s.BeforeSuite(a.setUpTestData)
 	s.BeforeScenario(a.newScenario)
-	s.Step(`^I\'m not authorized$`, imNotAuthorized)
+	s.Step(`^I\'m authorized$`, a.imAuthorized)
 	s.Step(`^I send "([^"]*)" request to "([^"]*)"$`, a.iSendRequestTo)
 	s.Step(`^the response code should be (\d+)$`, a.theResponseCodeShouldBe)
 	s.Step(`^the response should contain fields:$`, a.theResponseShouldContainFields)
