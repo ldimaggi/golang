@@ -101,7 +101,7 @@ func updatePayload() *client.UpdateWorkItemPayload {
 			"system.creator":  "GordieHowe",
 			"system.assignee": "Not WayneGretzky",
 		},
-		Version: 2,
+		Version: 0,
 	}
 }
 
@@ -116,7 +116,7 @@ func updatePayloadUnassign() *client.UpdateWorkItemPayload {
 			"system.creator":  "GordieHowe",
 			"system.assignee": "Jaromir Jagr",
 		},
-		Version: 3,
+		Version: 1,
 	}
 }
 
@@ -140,16 +140,6 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		resp, err := a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload())
 		a.resp = resp
 		a.err = err
-	case "update_workitem":
-		Info.Println("Received POST request to update workitem")
-		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayload())
-		a.resp = resp
-		a.err = err
-	case "update_workitem_unassign":
-		Info.Println("Received POST request to update/unassign workitem")
-		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayloadUnassign())
-		a.resp = resp
-		a.err = err
 
 		defer a.resp.Body.Close()
 		htmlData, err := ioutil.ReadAll(a.resp.Body)
@@ -160,6 +150,18 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		data := string(htmlData)
 		Info.Println("The response is:")
 		Info.Println(data)
+
+	case "update_workitem":
+		Info.Println("Received POST request to update workitem")
+		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayload())
+		a.resp = resp
+		a.err = err
+	case "update_workitem_unassign":
+		Info.Println("Received POST request to update/unassign workitem")
+		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayloadUnassign())
+		a.resp = resp
+		a.err = err
+		a.printResponse()
 
 	case "delete_workitem":
 		Info.Println("Received POST request to delete workitem")
@@ -310,6 +312,21 @@ func (a *api) cleanUpTestData() {
 	//		fmt.Println(err)
 	//		os.Exit(1)
 	//	}
+}
+
+func (a *api) printResponse() {
+	fmt.Println("Nothing to see here - move along")
+
+	defer a.resp.Body.Close()
+	htmlData, err := ioutil.ReadAll(a.resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	data := string(htmlData)
+	Info.Println("The response is:")
+	Info.Println(data)
+
 }
 
 func FeatureContext(s *godog.Suite) {
