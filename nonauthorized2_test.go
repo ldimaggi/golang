@@ -13,11 +13,9 @@ import (
 
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
-	"github.com/almighty/almighty-core/account"
 	"github.com/almighty/almighty-core/client"
 	"github.com/almighty/almighty-core/workitem"
 	goaclient "github.com/goadesign/goa/client"
-	uuid "github.com/satori/go.uuid"
 )
 
 /* Simple test to verify actions performed by non-authorized users */
@@ -80,7 +78,7 @@ func (a *api) newScenario(i interface{}) {
 }
 
 /* The payload used to create a workitem */
-//func createPayload() *client.CreateWorkitemPayload {
+//func createPayload() *client.CreateWorkItemPayload {
 //	return &client.CreateWorkItemPayload{
 //		Type: "system.bug",
 //		Fields: map[string]interface{}{
@@ -113,27 +111,7 @@ func createPayload() *client.CreateWorkitemPayload {
 	}
 }
 
-func createOneRandomUserIdentity() *account.Identity {
-	newUserUUID := uuid.NewV4()
-	identity := account.Identity{
-		FullName: "Test User Integration Random",
-		ImageURL: "http://images.com/42",
-		ID:       newUserUUID,
-	}
-	return &identity
-}
-
-func ident(id uuid.UUID) *client.GenericData {
-	APIStringTypeUser := "identities"
-	ut := APIStringTypeUser
-	i := id.String()
-	return &client.GenericData{
-		Type: &ut,
-		ID:   &i,
-	}
-}
-
-/* The payload used to update a workitem - to reassign the workitem*/
+/* The payload used to update a workitem */
 //func updatePayload() *client.UpdateWorkItemPayload {
 //	return &client.UpdateWorkItemPayload{
 //		Type: "system.bug",
@@ -144,7 +122,6 @@ func ident(id uuid.UUID) *client.GenericData {
 //			"system.creator":  "GordieHowe",
 //			"system.assignee": "Not WayneGretzky",
 //		},
-//		Version: 0,
 //	}
 //}
 func updatePayload() *client.UpdateWorkitemPayload {
@@ -156,8 +133,6 @@ func updatePayload() *client.UpdateWorkitemPayload {
 				"version":            "0",
 				workitem.SystemTitle: "the title updated",
 				workitem.SystemState: workitem.SystemStateOpen,
-				//workitem.SystemCreator:   "GordieHowe",
-				//workitem.SystemAssignees: "WayneGretzky",
 			},
 			Relationships: &client.WorkItemRelationships{
 				BaseType: &client.RelationBaseType{
@@ -166,56 +141,11 @@ func updatePayload() *client.UpdateWorkitemPayload {
 						Type: "workitemtypes",
 					},
 				},
-				//				Assignees: &client.RelationGenericList{
-				//					Data: []*client.GenericData{
-				//						ident(newUser.ID),
-				//					},
-				//				},
-			},
-			ID:   &idString,
-			Type: "workitems",
-		},
-	}
-}
-
-/* The payload used to update a workitem - to unassign the workitem*/
-//func updatePayloadUnassign() *client.UpdateWorkItemPayload {
-//	return &client.UpdateWorkItemPayload{
-//		Type: "system.bug",
-//		Fields: map[string]interface{}{
-//			"system.title":    "remove this TEST workitem PLEASE - OK",
-//			"system.owner":    "BobbyOrr",
-//			"system.state":    "open",
-//			"system.creator":  "GordieHowe",
-//			"system.assignee": "Jaromir Jagr",
-//		},
-//		Version: 1,
-//	}
-//}
-func updatePayloadUnassign() *client.UpdateWorkitemPayload {
-	//	newUser := createOneRandomUserIdentity()
-
-	return &client.UpdateWorkitemPayload{
-		Data: &client.WorkItem2{
-			Attributes: map[string]interface{}{
-				"version":            "1",
-				workitem.SystemTitle: "the title updated",
-				workitem.SystemState: workitem.SystemStateOpen,
-				//workitem.SystemCreator:   "GordieHowe",
-				//workitem.SystemAssignees: "WayneGretzky",
-			},
-			Relationships: &client.WorkItemRelationships{
-				BaseType: &client.RelationBaseType{
-					Data: &client.BaseTypeData{
-						ID:   "system.bug",
-						Type: "workitemtypes",
+				Assignees: &client.RelationGenericList{
+					Data: []*client.GenericData{
+					//						ident(newUser.ID),
 					},
 				},
-				//				Assignees: &client.RelationGenericList{
-				//					Data: []*client.GenericData{
-				//						ident(newUser.ID),
-				//					},
-				//				},
 			},
 			ID:   &idString,
 			Type: "workitems",
@@ -243,40 +173,11 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		resp, err := a.c.CreateWorkitem(context.Background(), "/api/workitems", createPayload())
 		a.resp = resp
 		a.err = err
-
-		defer a.resp.Body.Close()
-		htmlData, err := ioutil.ReadAll(a.resp.Body)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		data := string(htmlData)
-		Info.Println("The response is:")
-		Info.Println(data)
-
 	case "update_workitem":
 		Info.Println("Received POST request to update workitem")
 		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayload())
 		a.resp = resp
 		a.err = err
-
-		defer a.resp.Body.Close()
-		htmlData, err := ioutil.ReadAll(a.resp.Body)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		data := string(htmlData)
-		Info.Println("The response is:")
-		Info.Println(data)
-
-	case "update_workitem_unassign":
-		Info.Println("Received POST request to update/unassign workitem")
-		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayloadUnassign())
-		a.resp = resp
-		a.err = err
-		//		a.printResponse()
-
 	case "delete_workitem":
 		Info.Println("Received POST request to delete workitem")
 		resp, err := a.c.DeleteWorkitem(context.Background(), "/api/workitems/"+idString)
@@ -324,16 +225,9 @@ func (a *api) theResponseShouldContainFields(theDocString *gherkin.DocString) er
 	return nil
 }
 
-/* For authorized users - no set up is needed */
-func (a *api) imAuthorized() error {
-
-	/* Set up authorization with the token obtained earlier in the test */
-	a.c.SetJWTSigner(&goaclient.APIKeySigner{
-		SignQuery: false,
-		KeyName:   "Authorization",
-		KeyValue:  savedToken,
-		Format:    "Bearer %s",
-	})
+/* For non authorized users - no set up is needed */
+func imNotAuthorized() error {
+	//fmt.Println("Nothing to see here - move along")
 	return nil
 }
 
@@ -428,26 +322,11 @@ func (a *api) cleanUpTestData() {
 	}
 }
 
-func (a *api) printResponse() {
-	fmt.Println("Nothing to see here - move along")
-
-	defer a.resp.Body.Close()
-	htmlData, err := ioutil.ReadAll(a.resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	data := string(htmlData)
-	Info.Println("The response is:")
-	Info.Println(data)
-
-}
-
 func FeatureContext(s *godog.Suite) {
 	a := api{}
 	s.BeforeSuite(a.setUpTestData)
 	s.BeforeScenario(a.newScenario)
-	s.Step(`^I\'m authorized$`, a.imAuthorized)
+	s.Step(`^I\'m not authorized$`, imNotAuthorized)
 	s.Step(`^I send "([^"]*)" request to "([^"]*)"$`, a.iSendRequestTo)
 	s.Step(`^the response code should be (\d+)$`, a.theResponseCodeShouldBe)
 	s.Step(`^the response should contain fields:$`, a.theResponseShouldContainFields)
