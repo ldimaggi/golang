@@ -96,7 +96,7 @@ func createPayload() *client.CreateWorkitemPayload {
 			Attributes: map[string]interface{}{
 				workitem.SystemTitle:   "the title",
 				workitem.SystemState:   workitem.SystemStateOpen,
-				workitem.SystemCreator: "WayneGretzky",
+				workitem.SystemCreator: "GordieHowe",
 			},
 			Relationships: &client.WorkItemRelationships{
 				BaseType: &client.RelationBaseType{
@@ -128,10 +128,22 @@ func createPayload() *client.CreateWorkitemPayload {
 func updatePayload() *client.UpdateWorkitemPayload {
 	return &client.UpdateWorkitemPayload{
 		Data: &client.WorkItem2{
-			Type: "workitemtypes",
 			Attributes: map[string]interface{}{
-				"version": "0",
+				"version":                "0",
+				workitem.SystemTitle:     "the title",
+				workitem.SystemState:     workitem.SystemStateOpen,
+				workitem.SystemCreator:   "GordieHowe",
+				workitem.SystemAssignees: "WayneGretzky",
 			},
+			Relationships: &client.WorkItemRelationships{
+				BaseType: &client.RelationBaseType{
+					Data: &client.BaseTypeData{
+						ID:   "system.bug",
+						Type: "workitemtypes",
+					},
+				},
+			},
+			Type: "workitems",
 		},
 	}
 }
