@@ -2,6 +2,7 @@ package feature
 
 import (
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,10 +15,21 @@ import (
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/almighty/almighty-core/account"
+	"github.com/almighty/almighty-core/app"
 	"github.com/almighty/almighty-core/client"
+	"github.com/almighty/almighty-core/configuration"
+	"github.com/almighty/almighty-core/gormsupport"
+	"github.com/almighty/almighty-core/migration"
+	"github.com/almighty/almighty-core/models"
+	testsupport "github.com/almighty/almighty-core/test"
+	almtoken "github.com/almighty/almighty-core/token"
 	"github.com/almighty/almighty-core/workitem"
+	"github.com/goadesign/goa"
 	goaclient "github.com/goadesign/goa/client"
+	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 /* Simple test to verify actions performed by non-authorized users */
@@ -44,6 +56,20 @@ type api struct {
 	err  error
 	body map[string]interface{}
 	//body [200]string
+}
+
+/* Copied from workitem_blackbox_test.go */
+type WorkItem2Suite struct {
+	suite.Suite
+	db             *gorm.DB
+	clean          func()
+	wiCtrl         app.WorkitemController
+	wi2Ctrl        app.WorkitemController
+	pubKey         *rsa.PublicKey
+	priKey         *rsa.PrivateKey
+	svc            *goa.Service
+	wi             *app.WorkItem2
+	minimumPayload *app.UpdateWorkitemPayload
 }
 
 /* Define the loggin levels */
@@ -113,16 +139,67 @@ func createPayload() *client.CreateWorkitemPayload {
 	}
 }
 
-func createOneRandomUserIdentity() *account.Identity {
+/* Copied from workitem_blackbox_test.go */
+func (s *WorkItem2Suite) SetupSuite() {
+	var err error
+
+	if err = configuration.Setup(""); err != nil {
+		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
+	}
+
+	s.db, err = gorm.Open("postgres", configuration.GetPostgresConfigString())
+
+	if err != nil {
+		panic("Failed to connect database: " + err.Error())
+	}
+	s.pubKey, _ = almtoken.ParsePublicKey([]byte(almtoken.RSAPublicKey))
+	s.priKey, _ = almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
+	s.svc = testsupport.ServiceAsUser("TestUpdateWI2-Service", almtoken.NewManager(s.pubKey, s.priKey), account.TestIdentity)
+	require.NotNil(s.T(), s.svc)
+
+	// s.wiCtrl = NewWorkitemController(s.svc, gormapplication.NewGormDB(s.db))
+	// require.NotNil(s.T(), s.wiCtrl)
+	//
+	//	s.wi2Ctrl = NewWorkitemController(s.svc, gormapplication.NewGormDB(s.db))
+	//	require.NotNil(s.T(), s.wi2Ctrl)
+
+	// Make sure the database is populated with the correct types (e.g. system.bug etc.)
+	if configuration.GetPopulateCommonTypes() {
+		if err := models.Transactional(s.db, func(tx *gorm.DB) error {
+			return migration.PopulateCommonTypes(context.Background(), tx, workitem.NewWorkItemTypeRepository(tx))
+		}); err != nil {
+			panic(err.Error())
+		}
+	}
+	s.clean = gormsupport.DeleteCreatedEntities(s.db)
+}
+
+/* Copied from workitem_blackbox_test.go */
+func (s *WorkItem2Suite) TearDownSuite() {
+	s.clean()
+	if s.db != nil {
+		s.db.Close()
+	}
+}
+
+/* Copied from workitem_blackbox_test.go */
+func createOneRandomUserIdentity(ctx context.Context, db *gorm.DB) *account.Identity {
 	newUserUUID := uuid.NewV4()
+	identityRepo := account.NewIdentityRepository(db)
 	identity := account.Identity{
 		FullName: "Test User Integration Random",
 		ImageURL: "http://images.com/42",
 		ID:       newUserUUID,
 	}
+	err := identityRepo.Create(ctx, &identity)
+	if err != nil {
+		fmt.Println("should not happen off.")
+		return nil
+	}
 	return &identity
 }
 
+/* Copied from workitem_blackbox_test.go */
 func ident(id uuid.UUID) *client.GenericData {
 	APIStringTypeUser := "identities"
 	ut := APIStringTypeUser
@@ -148,7 +225,12 @@ func ident(id uuid.UUID) *client.GenericData {
 //	}
 //}
 func updatePayload() *client.UpdateWorkitemPayload {
-	//	newUser := createOneRandomUserIdentity()
+
+	/* Copied from workitem_blackbox_test.go */
+	bs := WorkItem2Suite{}
+	bs.SetupSuite()
+	newUser := createOneRandomUserIdentity(bs.svc.Context, bs.db)
+	Info.Println(newUser)
 
 	return &client.UpdateWorkitemPayload{
 		Data: &client.WorkItem2{
@@ -156,8 +238,6 @@ func updatePayload() *client.UpdateWorkitemPayload {
 				"version":            "0",
 				workitem.SystemTitle: "the title updated",
 				workitem.SystemState: workitem.SystemStateOpen,
-				//workitem.SystemCreator:   "GordieHowe",
-				//workitem.SystemAssignees: "WayneGretzky",
 			},
 			Relationships: &client.WorkItemRelationships{
 				BaseType: &client.RelationBaseType{
@@ -166,11 +246,11 @@ func updatePayload() *client.UpdateWorkitemPayload {
 						Type: "workitemtypes",
 					},
 				},
-				//				Assignees: &client.RelationGenericList{
-				//					Data: []*client.GenericData{
-				//						ident(newUser.ID),
-				//					},
-				//				},
+				Assignees: &client.RelationGenericList{
+					Data: []*client.GenericData{
+						ident(newUser.ID),
+					},
+				},
 			},
 			ID:   &idString,
 			Type: "workitems",
@@ -193,16 +273,12 @@ func updatePayload() *client.UpdateWorkitemPayload {
 //	}
 //}
 func updatePayloadUnassign() *client.UpdateWorkitemPayload {
-	//	newUser := createOneRandomUserIdentity()
-
 	return &client.UpdateWorkitemPayload{
 		Data: &client.WorkItem2{
 			Attributes: map[string]interface{}{
 				"version":            "1",
-				workitem.SystemTitle: "the title updated",
+				workitem.SystemTitle: "the title updated again",
 				workitem.SystemState: workitem.SystemStateOpen,
-				//workitem.SystemCreator:   "GordieHowe",
-				//workitem.SystemAssignees: "WayneGretzky",
 			},
 			Relationships: &client.WorkItemRelationships{
 				BaseType: &client.RelationBaseType{
@@ -211,11 +287,9 @@ func updatePayloadUnassign() *client.UpdateWorkitemPayload {
 						Type: "workitemtypes",
 					},
 				},
-				//				Assignees: &client.RelationGenericList{
-				//					Data: []*client.GenericData{
-				//						ident(newUser.ID),
-				//					},
-				//				},
+				Assignees: &client.RelationGenericList{
+					Data: []*client.GenericData{},
+				},
 			},
 			ID:   &idString,
 			Type: "workitems",
@@ -275,7 +349,7 @@ func (a *api) iSendRequestTo(requestMethod, endpoint string) error {
 		resp, err := a.c.UpdateWorkitem(context.Background(), "/api/workitems/"+idString, updatePayloadUnassign())
 		a.resp = resp
 		a.err = err
-		//		a.printResponse()
+		a.printResponse()
 
 	case "delete_workitem":
 		Info.Println("Received POST request to delete workitem")
@@ -339,6 +413,7 @@ func (a *api) imAuthorized() error {
 
 /* This function creates a new work item, and returns the ID of that work item */
 func (a *api) setUpTestData() {
+
 	Init(ioutil.Discard, os.Stdout, os.Stdout, os.Stderr)
 
 	a.c = nil
@@ -440,7 +515,6 @@ func (a *api) printResponse() {
 	data := string(htmlData)
 	Info.Println("The response is:")
 	Info.Println(data)
-
 }
 
 func FeatureContext(s *godog.Suite) {
