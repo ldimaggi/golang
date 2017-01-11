@@ -694,3 +694,18 @@ func (i *BacklogContext) printResponse() {
 	Info.Println("The response is:")
 	Info.Println(data)
 }
+
+/* For non authorized users - no set up is needed */
+func (i *BacklogContext)imNotAuthorized() error {
+	//fmt.Println("Nothing to see here - move along")
+
+	/* Set up authorization with the token obtained earlier in the test */
+	i.api.c.SetJWTSigner(&goaclient.APIKeySigner{
+		SignQuery: false,
+		KeyName:   "Authorization",
+		KeyValue:  "bad token",
+		Format:    "Bearer %s",
+	})
+
+	return nil
+}
